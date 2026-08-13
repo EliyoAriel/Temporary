@@ -1,0 +1,26 @@
+# Seconds of no activity before a tracked chunk is rolled back.
+inactivity-delay: 300
+# Extra seconds added to the CoreProtect rollback window so no block is missed.
+rollback-time-buffer: 5
+
+# Mode 1: entire worlds are temporary.
+world-modes:
+  - world_minigame
+
+# Mode 2: box areas defined by min/max chunk coordinates. Optional per-entry
+# time overrides fall back to the global values when omitted.
+chunk-ranges:
+  - world: arena_world
+    min-chunk-x: -5
+    max-chunk-x: 5
+    min-chunk-z: -5
+    max-chunk-z: 5
+    # inactivity-delay: 120
+    # rollback-time-buffer: 3
+
+# Mode 3: individual chunks of interest, format "X,Z".
+specific-chunks:
+  - world: spawn_world
+    chunks:
+      - "10,20"
+      - "-3,7"

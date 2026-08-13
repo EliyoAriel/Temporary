@@ -1,0 +1,23 @@
+name: Temporary
+version: ${project.version}
+main: com.temporary.TemporaryPlugin
+api-version: '1.21'
+description: Chunk-based temporary areas with automatic CoreProtect rollback
+softdepend: [CoreProtect]
+
+commands:
+  temporary:
+    description: Temporary area management
+    usage: /temporary <reload|list|rollback <world> <chunkX,chunkZ>>
+    permission: temporary.list
+
+permissions:
+  temporary.list:
+    description: List tracked temporary chunks
+    default: true
+  temporary.reload:
+    description: Reload the config
+    default: op
+  temporary.rollback:
+    description: Force a chunk rollback
+    default: op
