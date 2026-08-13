@@ -5,11 +5,26 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.block.Block;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockBurnEvent;
+import org.bukkit.event.block.BlockExplodeEvent;
+import org.bukkit.event.block.BlockFadeEvent;
+import org.bukkit.event.block.BlockFormEvent;
+import org.bukkit.event.block.BlockFromToEvent;
+import org.bukkit.event.block.BlockGrowEvent;
+import org.bukkit.event.block.BlockIgniteEvent;
+import org.bukkit.event.block.BlockPistonExtendEvent;
+import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.block.BlockSpreadEvent;
+import org.bukkit.event.block.LeavesDecayEvent;
+import org.bukkit.event.entity.EntityChangeBlockEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -56,12 +71,87 @@ public class TemporaryPlugin extends JavaPlugin implements Listener {
 
     @EventHandler(ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
-        recordActivity(event.getBlock().getWorld().getName(), event.getBlock().getX() >> 4, event.getBlock().getZ() >> 4);
+        recordActivity(event.getBlock());
     }
 
     @EventHandler(ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event) {
-        recordActivity(event.getBlock().getWorld().getName(), event.getBlock().getX() >> 4, event.getBlock().getZ() >> 4);
+        recordActivity(event.getBlock());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBlockBurn(BlockBurnEvent event) {
+        recordActivity(event.getBlock());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBlockExplode(BlockExplodeEvent event) {
+        recordActivity(event.blockList());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onEntityExplode(EntityExplodeEvent event) {
+        recordActivity(event.blockList());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBlockFade(BlockFadeEvent event) {
+        recordActivity(event.getBlock());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBlockForm(BlockFormEvent event) {
+        recordActivity(event.getBlock());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBlockFromTo(BlockFromToEvent event) {
+        recordActivity(event.getBlock());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBlockGrow(BlockGrowEvent event) {
+        recordActivity(event.getBlock());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBlockIgnite(BlockIgniteEvent event) {
+        recordActivity(event.getBlock());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBlockSpread(BlockSpreadEvent event) {
+        recordActivity(event.getBlock());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onPistonExtend(BlockPistonExtendEvent event) {
+        recordActivity(event.getBlocks());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onPistonRetract(BlockPistonRetractEvent event) {
+        recordActivity(event.getBlocks());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onLeavesDecay(LeavesDecayEvent event) {
+        recordActivity(event.getBlock());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onEntityChangeBlock(EntityChangeBlockEvent event) {
+        recordActivity(event.getBlock());
+    }
+
+    private void recordActivity(Block block) {
+        recordActivity(block.getWorld().getName(), block.getX() >> 4, block.getZ() >> 4);
+    }
+
+    private void recordActivity(Collection<Block> blocks) {
+        for (Block block : blocks) {
+            recordActivity(block);
+        }
     }
 
     void recordActivity(String worldName, int chunkX, int chunkZ) {
