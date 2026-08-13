@@ -37,6 +37,7 @@ public class TemporaryPlugin extends JavaPlugin implements Listener {
 
     private BukkitTask schedulerTask;
     private final SessionDatabase db = new SessionDatabase(this);
+    private SupplyDropListener supplyDropListener;
 
     @Override
     public void onEnable() {
@@ -45,6 +46,11 @@ public class TemporaryPlugin extends JavaPlugin implements Listener {
         db.init(getDataFolder());
         sessions.putAll(db.loadAll());
         getServer().getPluginManager().registerEvents(this, this);
+        if (getServer().getPluginManager().getPlugin("SupplyDrop") != null) {
+            supplyDropListener = new SupplyDropListener(this);
+            getServer().getPluginManager().registerEvents(supplyDropListener, this);
+            supplyDropListener.seedActiveCrates();
+        }
         var command = getCommand("temporary");
         if (command != null) {
             var handler = new com.temporary.commands.TemporaryCommand(this);
@@ -56,6 +62,7 @@ public class TemporaryPlugin extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
+        if (supplyDropListener != null) supplyDropListener.disable();
         if (schedulerTask != null) schedulerTask.cancel();
         db.shutdown();
     }
@@ -176,9 +183,10 @@ public class TemporaryPlugin extends JavaPlugin implements Listener {
         long now = System.currentTimeMillis() / 1000;
         for (ChunkSession session : new HashMap<>(sessions).values()) {
             if (!session.expired(now)) continue;
+            String key = ChunkSession.key(session.worldName(), session.chunkX(), session.chunkZ());
+            if (supplyDropListener != null && supplyDropListener.isProtected(key)) continue;
             World world = Bukkit.getWorld(session.worldName());
             if (world == null) continue;
-            String key = ChunkSession.key(session.worldName(), session.chunkX(), session.chunkZ());
             Location center = chunkCenter(world, session.chunkX(), session.chunkZ());
             long duration = session.duration(now);
             getServer().getScheduler().runTaskAsynchronously(this, () -> {
@@ -225,8 +233,23 @@ public class TemporaryPlugin extends JavaPlugin implements Listener {
         return true;
     }
 
-    public String listSessions() {
-        if (sessions.isEmpty()) return "No temporary chunks are currently tracked.";
+    // Clamps the session start to the crate's landing so the eventual rollback
+    // restores the pre-crate state, not pre-session builds. No-op outside areas.
+    void onCrateLanded(String worldName, int chunkX, int chunkZ, long landTimeMs) {
+        AreaManager.Area area = areaManager.find(worldName, chunkX, chunkZ);
+        if (area == null) return;
+        long landSec = landTimeMs / 1000;
+        long now = System.currentTimeMillis() / 1000;
+        String key = ChunkSession.key(worldName, chunkX, chunkZ);
+        retries.remove(key);
+        ChunkSession session = sessions.get(key);
+        long start = session == null ? landSec : Math.min(session.sessionStart(), landSec);
+        sessions.put(key, new ChunkSession(worldName, chunkX, chunkZ, start, now,
+                area.inactivityDelay(), area.rollbackBuffer()));
+        db.save(sessions.get(key));
+    }
+
+    public String listSessions() {        if (sessions.isEmpty()) return "No temporary chunks are currently tracked.";
         StringBuilder sb = new StringBuilder();
         for (ChunkSession session : sessions.values()) {
             sb.append(session.worldName()).append(" (").append(session.chunkX()).append(",")
