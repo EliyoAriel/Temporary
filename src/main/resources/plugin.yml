@@ -3,7 +3,7 @@ version: ${project.version}
 main: com.temporary.TemporaryPlugin
 api-version: '1.21'
 description: Chunk-based temporary areas with automatic CoreProtect rollback
-softdepend: [CoreProtect]
+softdepend: [CoreProtect, SupplyDrop]
 
 commands:
   temporary:
