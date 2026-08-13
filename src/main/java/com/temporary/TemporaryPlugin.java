@@ -1,6 +1,7 @@
 package com.temporary;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.event.EventHandler;
@@ -24,8 +25,16 @@ import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
+import net.md_5.bungee.api.chat.BaseComponent;
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.ComponentBuilder;
+import net.md_5.bungee.api.chat.HoverEvent;
+import net.md_5.bungee.api.chat.TextComponent;
+
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class TemporaryPlugin extends JavaPlugin implements Listener {
@@ -248,22 +257,37 @@ public class TemporaryPlugin extends JavaPlugin implements Listener {
                 area.inactivityDelay(), area.rollbackBuffer()));
         db.save(sessions.get(key));
     }
-    public String listSessions() {
-        if (sessions.isEmpty()) return "No temporary chunks are currently tracked.";
+
+    public BaseComponent[] listSessions() {
+        if (sessions.isEmpty()) {
+            return new BaseComponent[]{new TextComponent(ChatColor.GRAY + "No temporary chunks are currently tracked.")};
+        }
         long now = System.currentTimeMillis() / 1000;
-        StringBuilder sb = new StringBuilder();
+        List<BaseComponent> lines = new ArrayList<>();
         for (ChunkSession session : sessions.values()) {
             String key = ChunkSession.key(session.worldName(), session.chunkX(), session.chunkZ());
-            sb.append(session.worldName()).append(" (").append(session.chunkX()).append(",")
-                    .append(session.chunkZ()).append(")");
+            String status;
             if (supplyDropListener != null && supplyDropListener.isProtected(key)) {
-                sb.append(" - Pending (crate active)");
+                status = ChatColor.YELLOW + "Pending (crate active)";
             } else {
-                long left = session.inactivityDelay() - (now - session.lastActivity());
-                sb.append(" - ").append(Math.max(0, left)).append("s left");
+                long left = Math.max(0, session.inactivityDelay() - (now - session.lastActivity()));
+                status = ChatColor.GREEN + formatTime(left) + ChatColor.WHITE + " left";
             }
-            sb.append('\n');
+            TextComponent line = new TextComponent(ChatColor.GRAY + session.worldName() + ChatColor.WHITE + " ("
+                    + ChatColor.AQUA + session.chunkX() + "," + session.chunkZ() + ChatColor.WHITE + ") - " + status);
+            line.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND,
+                    "/temporary tp " + session.worldName() + " " + session.chunkX() + "," + session.chunkZ()));
+            line.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                    new ComponentBuilder(ChatColor.GREEN + "Click to teleport to this chunk").create()));
+            lines.add(line);
         }
-        return sb.toString().trim();
+        return lines.toArray(new BaseComponent[0]);
+    }
+
+    private static String formatTime(long totalSec) {
+        long h = totalSec / 3600, m = (totalSec % 3600) / 60, s = totalSec % 60;
+        if (h > 0) return h + "h " + m + "m";
+        if (m > 0) return m + "m " + s + "s";
+        return s + "s";
     }
 }

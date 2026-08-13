@@ -21,3 +21,6 @@ permissions:
   temporary.rollback:
     description: Force a chunk rollback
     default: op
+  temporary.tp:
+    description: Teleport to a temporary chunk
+    default: op
