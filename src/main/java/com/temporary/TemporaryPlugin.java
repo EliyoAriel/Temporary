@@ -248,13 +248,21 @@ public class TemporaryPlugin extends JavaPlugin implements Listener {
                 area.inactivityDelay(), area.rollbackBuffer()));
         db.save(sessions.get(key));
     }
-
-    public String listSessions() {        if (sessions.isEmpty()) return "No temporary chunks are currently tracked.";
+    public String listSessions() {
+        if (sessions.isEmpty()) return "No temporary chunks are currently tracked.";
+        long now = System.currentTimeMillis() / 1000;
         StringBuilder sb = new StringBuilder();
         for (ChunkSession session : sessions.values()) {
+            String key = ChunkSession.key(session.worldName(), session.chunkX(), session.chunkZ());
             sb.append(session.worldName()).append(" (").append(session.chunkX()).append(",")
-                    .append(session.chunkZ()).append(") - inactive after ")
-                    .append(session.inactivityDelay()).append("s\n");
+                    .append(session.chunkZ()).append(")");
+            if (supplyDropListener != null && supplyDropListener.isProtected(key)) {
+                sb.append(" - Pending (crate active)");
+            } else {
+                long left = session.inactivityDelay() - (now - session.lastActivity());
+                sb.append(" - ").append(Math.max(0, left)).append("s left");
+            }
+            sb.append('\n');
         }
         return sb.toString().trim();
     }
