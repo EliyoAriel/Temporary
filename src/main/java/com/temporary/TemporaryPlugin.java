@@ -3,9 +3,6 @@ package com.temporary;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
@@ -13,8 +10,6 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -26,14 +21,14 @@ public class TemporaryPlugin extends JavaPlugin implements Listener {
     private final CoreProtectRollback rollback = new CoreProtectRollback(this);
 
     private BukkitTask schedulerTask;
-    private File sessionsFile;
+    private final SessionDatabase db = new SessionDatabase(this);
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
-        sessionsFile = new File(getDataFolder(), "sessions.yml");
         reload();
-        loadSessions();
+        db.init(getDataFolder());
+        sessions.putAll(db.loadAll());
         getServer().getPluginManager().registerEvents(this, this);
         var command = getCommand("temporary");
         if (command != null) {
@@ -47,7 +42,7 @@ public class TemporaryPlugin extends JavaPlugin implements Listener {
     @Override
     public void onDisable() {
         if (schedulerTask != null) schedulerTask.cancel();
-        saveSessions();
+        db.shutdown();
     }
 
     public void reload() {
@@ -77,11 +72,14 @@ public class TemporaryPlugin extends JavaPlugin implements Listener {
         retries.remove(key);
         ChunkSession session = sessions.get(key);
         if (session == null) {
-            sessions.put(key, new ChunkSession(worldName, chunkX, chunkZ, now, now,
-                    area.inactivityDelay(), area.rollbackBuffer()));
+            session = new ChunkSession(worldName, chunkX, chunkZ, now, now,
+                    area.inactivityDelay(), area.rollbackBuffer());
+            sessions.put(key, session);
         } else {
-            sessions.put(key, session.touch(now));
+            session = session.touch(now);
+            sessions.put(key, session);
         }
+        db.save(session);
     }
 
     private void tick() {
@@ -104,7 +102,7 @@ public class TemporaryPlugin extends JavaPlugin implements Listener {
         if (ok) {
             sessions.remove(key, session);
             retries.remove(key);
-            saveSessions();
+            db.remove(session.worldName(), session.chunkX(), session.chunkZ());
             getLogger().info("Rolled back " + session.worldName() + " chunk "
                     + session.chunkX() + "," + session.chunkZ());
             return;
@@ -146,43 +144,5 @@ public class TemporaryPlugin extends JavaPlugin implements Listener {
                     .append(session.inactivityDelay()).append("s\n");
         }
         return sb.toString().trim();
-    }
-
-    private void loadSessions() {
-        if (!sessionsFile.exists()) return;
-        FileConfiguration yaml = YamlConfiguration.loadConfiguration(sessionsFile);
-        for (String key : yaml.getKeys(false)) {
-            ConfigurationSection section = yaml.getConfigurationSection(key);
-            if (section == null) continue;
-            sessions.put(key, new ChunkSession(
-                    section.getString("world", ""),
-                    section.getInt("chunkX"),
-                    section.getInt("chunkZ"),
-                    section.getLong("sessionStart"),
-                    section.getLong("lastActivity"),
-                    section.getLong("inactivityDelay"),
-                    section.getLong("rollbackBuffer")
-            ));
-        }
-        getLogger().info("Loaded " + sessions.size() + " pending session(s)");
-    }
-
-    private void saveSessions() {
-        FileConfiguration yaml = new YamlConfiguration();
-        for (ChunkSession session : sessions.values()) {
-            String key = ChunkSession.key(session.worldName(), session.chunkX(), session.chunkZ());
-            yaml.set(key + ".world", session.worldName());
-            yaml.set(key + ".chunkX", session.chunkX());
-            yaml.set(key + ".chunkZ", session.chunkZ());
-            yaml.set(key + ".sessionStart", session.sessionStart());
-            yaml.set(key + ".lastActivity", session.lastActivity());
-            yaml.set(key + ".inactivityDelay", session.inactivityDelay());
-            yaml.set(key + ".rollbackBuffer", session.rollbackBuffer());
-        }
-        try {
-            yaml.save(sessionsFile);
-        } catch (IOException e) {
-            getLogger().severe("Could not save sessions.yml: " + e.getMessage());
-        }
     }
 }
