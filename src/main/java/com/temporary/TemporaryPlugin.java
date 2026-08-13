@@ -31,10 +31,8 @@ import net.md_5.bungee.api.chat.ComponentBuilder;
 import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.TextComponent;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class TemporaryPlugin extends JavaPlugin implements Listener {
@@ -258,13 +256,16 @@ public class TemporaryPlugin extends JavaPlugin implements Listener {
         db.save(sessions.get(key));
     }
 
-    public BaseComponent[] listSessions() {
+    public BaseComponent listSessions() {
         if (sessions.isEmpty()) {
-            return new BaseComponent[]{new TextComponent(ChatColor.GRAY + "No temporary chunks are currently tracked.")};
+            return new TextComponent(ChatColor.GRAY + "No temporary chunks are currently tracked.");
         }
         long now = System.currentTimeMillis() / 1000;
-        List<BaseComponent> lines = new ArrayList<>();
+        TextComponent root = new TextComponent("");
+        boolean first = true;
         for (ChunkSession session : sessions.values()) {
+            if (!first) root.addExtra(ChatColor.GRAY + ", ");
+            first = false;
             String key = ChunkSession.key(session.worldName(), session.chunkX(), session.chunkZ());
             String status;
             if (supplyDropListener != null && supplyDropListener.isProtected(key)) {
@@ -273,15 +274,15 @@ public class TemporaryPlugin extends JavaPlugin implements Listener {
                 long left = Math.max(0, session.inactivityDelay() - (now - session.lastActivity()));
                 status = ChatColor.GREEN + formatTime(left) + ChatColor.WHITE + " left";
             }
-            TextComponent line = new TextComponent(ChatColor.GRAY + session.worldName() + ChatColor.WHITE + " ("
+            TextComponent entry = new TextComponent(ChatColor.GRAY + session.worldName() + ChatColor.WHITE + " ("
                     + ChatColor.AQUA + session.chunkX() + "," + session.chunkZ() + ChatColor.WHITE + ") - " + status);
-            line.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND,
+            entry.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND,
                     "/temporary tp " + session.worldName() + " " + session.chunkX() + "," + session.chunkZ()));
-            line.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+            entry.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
                     new ComponentBuilder(ChatColor.GREEN + "Click to teleport to this chunk").create()));
-            lines.add(line);
+            root.addExtra(entry);
         }
-        return lines.toArray(new BaseComponent[0]);
+        return root;
     }
 
     private static String formatTime(long totalSec) {
